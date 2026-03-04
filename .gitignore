@@ -15,8 +15,7 @@ venv/
 # ChromaDB vectorstore (regenerated via --force-ingest)
 doc_vectorstore/
 
-# PDF data files
-*.pdf
+
 
 # IDE
 .vscode/
