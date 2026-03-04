@@ -20,7 +20,7 @@ A production-ready, local **Retrieval-Augmented Generation (RAG)** system that l
 ---
 
 ## 🏗️ Architecture
-![Architecture Diagram](./Architecture_diagram.png)
+![Architecture Diagram](./images/Architecture_diagram.png)
 
 ---
 
@@ -38,6 +38,24 @@ deepseek/
 ├── doc_vectorstore/     # Auto-generated ChromaDB persistence directory
 └── venv/                # Python virtual environment
 ```
+
+---
+
+## ⚡ LLM Options: Groq vs Local Ollama
+
+Newel RAG supports two distinct pathways for answer generation, allowing you to choose the best option for your use case:
+
+### Cloud API (Groq: `llama-3.3-70b-versatile`)
+**Advantages:**
+- **Blazing Fast Speed:** The LPU (Language Processing Unit) inference engine provides near-instantaneous token generation.
+- **High Quality Responses:** The 70B parameter model offers superior reasoning, synthesis, and strict adherence to context formatting instructions.
+- **Zero Local Hardware Load:** No GPU required on your local machine; all heavy lifting is handled in the cloud.
+
+### Local Model (Ollama: `llama3`)
+**Advantages:**
+- **100% Privacy & Security:** Your document context and questions never leave your machine, making it ideal for highly sensitive corporate data.
+- **Offline Capability:** Works entirely without an internet connection once the model is downloaded.
+- **Zero Ongoing Costs:** No API limits, subscription fees, or cost-per-token regardless of how many documents you ingest or questions you ask.
 
 ---
 
@@ -119,15 +137,16 @@ Type `quit`, `exit`, or `q` to leave the Q&A loop.
 
 The RAG accurately retrieves the correct figures directly from the 2023-24 Annual Report and cites the exact pages perfectly:
 
-![RAG Console Output](./swiggy%20question.png)
+![RAG Console Output](./images/swiggy%20question.png)
 
-*Source PDF Page 42:*
-![Source Proof 1](./swiggy_finance_1.png)
+*Source PDF Page 5:*
+![Source Proof 1](./images/swiggy_finance_1.png)
 
-*Source PDF Page 43:*
-![Source Proof 2](./swiggy_finance_2.png)
+*Source PDF Page 6:*
+![Source Proof 2](./images/swiggy_finance_2.png)
 
-
+Another Example
+![RAG Console Output](./images/swiggy_ceo.png)
 ---
 
 ## ⚙️ CLI Flags
