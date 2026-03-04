@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+venv/
+.venv/
+
+# Environment variables
+.env
+
+# ChromaDB vectorstore (regenerated via --force-ingest)
+doc_vectorstore/
+
+# PDF data files
+*.pdf
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
