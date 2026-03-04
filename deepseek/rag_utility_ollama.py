@@ -5,25 +5,21 @@ from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
-from langchain_groq import ChatGroq
+from langchain_community.chat_models import ChatOllama
 from sentence_transformers import CrossEncoder
 
 load_dotenv()
 
 working_dir = os.path.dirname(os.path.abspath(__file__))
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-os.environ["GROQ_API_KEY"] = GROQ_API_KEY
 
-if not GROQ_API_KEY:
-    print("Warning: GROQ_API_KEY is not set in environment or .env file.")
-
+# Loading the embedding model
 embedding = HuggingFaceEmbeddings()
 
-llm = ChatGroq(
-    model="llama-3.3-70b-versatile",
+# Load the local LLM from Ollama
+llm = ChatOllama(
+    model="llama3", # Change this to whichever local model you have pulled in Ollama (e.g., 'llama3', 'mistral', 'phi3')
     temperature=0
 )
-
 
 print("Loading BGE reranker model...")
 reranker = CrossEncoder("BAAI/bge-reranker-v2-m3")
@@ -59,6 +55,7 @@ def process_document_to_chroma_db(file_name):
     documents = loader.load()
 
     print(f"  Loaded {len(documents)} pages from PDF.")
+
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000,
         chunk_overlap=200,
@@ -84,6 +81,7 @@ def answer_question(user_question):
         persist_directory=os.path.join(working_dir, "doc_vectorstore"),
         embedding_function=embedding,
     )
+
     retriever = vectordb.as_retriever(search_kwargs={"k": 15})
     candidate_docs = retriever.invoke(user_question)
 
@@ -99,7 +97,6 @@ def answer_question(user_question):
     scored_docs = sorted(zip(scores, candidate_docs), key=lambda x: x[0], reverse=True)
     top_docs = [doc for _, doc in scored_docs[:6]]
 
-    # Build labeled context with page numbers ONLY
     context_parts = []
     seen_pages = set()
     for doc in top_docs:

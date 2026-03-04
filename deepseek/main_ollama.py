@@ -1,12 +1,12 @@
 import os
 import argparse
-from rag_utility import process_document_to_chroma_db, answer_question
+from rag_utility_ollama import process_document_to_chroma_db, answer_question
 
 working_dir = os.path.dirname(os.path.abspath(__file__))
 VECTORSTORE_DIR = os.path.join(working_dir, "doc_vectorstore")
 
 def main():
-    parser = argparse.ArgumentParser(description="Local CLI for RAG")
+    parser = argparse.ArgumentParser(description="Local CLI for RAG (Ollama powered)")
     parser.add_argument("--ingest", type=str, help="Path or name of PDF file to ingest")
     parser.add_argument("--force-ingest", action="store_true", help="Force re-ingestion even if vectorstore exists")
     
@@ -28,7 +28,7 @@ def main():
         except Exception as e:
             print(f"Failed to process {pdf_path}. Error: {e}")
         
-    print("\nType your question (or 'quit', 'exit' to leave):")
+    print("\n[Local Ollama Inference] Type your question (or 'quit', 'exit' to leave):")
     while True:
         try:
             question = input("\nQ: ")
@@ -37,7 +37,7 @@ def main():
             if not question.strip():
                 continue
             
-            print("Thinking...")
+            print("Thinking (via local Ollama)...")
             answer = answer_question(question)
             print(f"\nA: {answer}")
         except KeyboardInterrupt:

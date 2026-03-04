@@ -1,6 +1,6 @@
 # 📄 Newel RAG — Local Document Q&A with Retrieval-Augmented Generation
 
-A production-ready, local **Retrieval-Augmented Generation (RAG)** system that lets you ask natural-language questions about any PDF document and get precise, citation-backed answers — powered by **Groq (LLaMA 3.3 70B)**, **HuggingFace Embeddings**, **ChromaDB**, and a **BGE Reranker** for two-stage retrieval.
+A production-ready, local **Retrieval-Augmented Generation (RAG)** system that lets you ask natural-language questions about any PDF document and get precise, citation-backed answers — powered by **LLaMA 3.3 70B**, **HuggingFace Embeddings**, **ChromaDB**, and a **BGE Reranker** for two-stage retrieval.
 
 ---
 
@@ -21,44 +21,57 @@ A production-ready, local **Retrieval-Augmented Generation (RAG)** system that l
 
 ## 🏗️ Architecture
 
-```
-┌─────────────┐      ┌──────────────────┐      ┌────────────────┐
-│   PDF File  │─────▶│  PyMuPDF Loader  │─────▶│ Text Splitter  │
-└─────────────┘      └──────────────────┘      └───────┬────────┘
-                                                       │
-                                                       ▼
-                                              ┌────────────────┐
-                                              │  HuggingFace   │
-                                              │  Embeddings    │
-                                              └───────┬────────┘
-                                                      │
-                                                      ▼
-                                              ┌────────────────┐
-                                              │   ChromaDB     │
-                                              │  (persistent)  │
-                                              └───────┬────────┘
-                                                      │
-                            User Question ───────────▶│
-                                                      ▼
-                                              ┌────────────────┐
-                                              │ Vector Search  │
-                                              │  (k = 15)      │
-                                              └───────┬────────┘
-                                                      │
-                                                      ▼
-                                              ┌────────────────┐
-                                              │ BGE Reranker   │
-                                              │  (top 6)       │
-                                              └───────┬────────┘
-                                                      │
-                                                      ▼
-                                              ┌────────────────┐
-                                              │  Groq LLaMA    │
-                                              │  3.3-70B       │
-                                              └───────┬────────┘
-                                                      │
-                                                      ▼
-                                              Cited Answer
+```mermaid
+flowchart LR
+    subgraph Ingestion [DOCUMENT INGESTION PIPELINE]
+        direction LR
+        Doc[📄 PDF Document] -- extract text --> Loader[📄 PyMuPDF Loader]
+        Loader -- raw text --> Splitter[✂️ Text Splitter]
+        Splitter -- chunks --> Embed1[🧠 HuggingFace Embeddings]
+    end
+
+    subgraph VS [VECTOR STORE]
+        DB[(🗄️ ChromaDB<br>Vector Store)]
+    end
+    
+    Embed1 -- store vectors --> DB
+
+    subgraph QA [QUERY AND ANSWER PIPELINE]
+        direction LR
+        User[👤 User Question]
+        Embed2[🧠 HuggingFace Embeddings]
+        Search((🔍 Similarity Search))
+        Rerank[🔽 BGE Reranker]
+        Chunks[📚 Top 6 Chunks]
+        Builder[📝 Prompt Builder]
+
+        User -- embed query --> Embed2
+        Embed2 --> Search
+        Search -- candidates --> Rerank
+        Rerank -- rerank --> Chunks
+        Chunks -- context --> Builder
+        User -- question --> Builder
+    end
+
+    Search -- retrieve top 15 --> DB
+    DB --> Search
+
+    subgraph LLM_Node [LLM]
+        LLM_Model[⚡ Groq LLaMA 3.3 70B<br>or Local Ollama]
+    end
+
+    subgraph Answer_Node [ANSWER]
+        FinalAnswer(((✔️ Answer with<br>Citations)))
+    end
+
+    Builder -- prompt --> LLM_Model
+    LLM_Model -- response --> FinalAnswer
+
+    %% Styling
+    classDef default fill:#1e1e1e,stroke:#fff,stroke-width:1px,color:#fff;
+    classDef container fill:#000000,stroke:#555,stroke-width:1px,color:#fff;
+    
+    class Ingestion,VS,QA,LLM_Node,Answer_Node container;
 ```
 
 ---
@@ -67,10 +80,12 @@ A production-ready, local **Retrieval-Augmented Generation (RAG)** system that l
 
 ```
 deepseek/
-├── main.py              # CLI entry point — ingestion + interactive Q&A loop
-├── rag_utility.py       # Core RAG pipeline (ingestion, retrieval, reranking, LLM)
+├── main.py              # CLI entry point (Groq API)
+├── main_ollama.py       # CLI entry point (Local Ollama model)
+├── rag_utility.py       # Core RAG pipeline for Groq
+├── rag_utility_ollama.py# Core RAG pipeline for local Ollama
 ├── requirements.txt     # Python dependencies
-├── .env                 # Groq API key (not committed)
+├── .env                 # Groq API key 
 ├── .gitignore           # Ignores venv, vectorstore, PDFs, .env
 ├── doc_vectorstore/     # Auto-generated ChromaDB persistence directory
 └── venv/                # Python virtual environment
@@ -121,8 +136,11 @@ GROQ_API_KEY="gsk_your_groq_api_key_here"
 ### 5. Run the application
 
 ```bash
-# Ingest the default PDF and start Q&A
+# Ingest the default PDF and start Q&A (Groq)
 python main.py
+
+# Ingest and start Q&A with Local Ollama
+python main_ollama.py
 
 # Ingest a specific PDF
 python main.py --ingest path/to/your-document.pdf
@@ -164,12 +182,12 @@ Type `quit`, `exit`, or `q` to leave the Q&A loop.
 
 ## 🔧 Key Components
 
-### `rag_utility.py`
+### `rag_utility.py` & `rag_utility_ollama.py`
 
 | Function | Description |
 |---|---|
 | `process_document_to_chroma_db(file_name)` | Loads a PDF via PyMuPDF, splits it into 1 000-char chunks with 200-char overlap, embeds with HuggingFace, and persists to ChromaDB |
-| `answer_question(user_question)` | Performs two-stage retrieval (vector search → BGE rerank), builds a cited context, and queries Groq LLaMA for a grounded answer |
+| `answer_question(user_question)` | Performs two-stage retrieval (vector search → BGE rerank), builds a cited context, and queries Groq LLaMA (or local Ollama) for a grounded answer |
 
 ### Models Used
 
@@ -177,7 +195,8 @@ Type `quit`, `exit`, or `q` to leave the Q&A loop.
 |---|---|---|
 | `all-MiniLM-L6-v2` | Document & query embedding | HuggingFace (local) |
 | `BAAI/bge-reranker-v2-m3` | Cross-encoder reranking | HuggingFace (local) |
-| `llama-3.3-70b-versatile` | Answer generation | Groq (cloud API) |
+| `llama-3.3-70b-versatile` | Answer generation (Cloud) | Groq (cloud API) |
+| `llama3` | Answer generation (Local) | Ollama (local) |
 
 ---
 
@@ -217,6 +236,7 @@ This project is for educational and research purposes.
 ## 🙏 Acknowledgements
 
 - [LangChain](https://github.com/langchain-ai/langchain) — RAG orchestration
+- [Ollama](https://ollama.com) — local LLM runners
 - [Groq](https://groq.com) — lightning-fast LLM inference
 - [ChromaDB](https://www.trychroma.com) — vector storage
 - [HuggingFace](https://huggingface.co) — embeddings & reranker models
